@@ -6,29 +6,25 @@ metadata:
 spec:
   serviceAccountName: pipeline
   containers:
-  - name: test-container
-    image: busybox
-    command: ["/bin/sh", "-c"]
-    args: 
-      - |
-        echo "username: $(cat /mnt/secrets/username)"
-        echo "password: $(cat /mnt/secrets/password)"
-        echo "database: $(cat /mnt/secrets/database)"
+    - name: test-container
+      image: busybox
+      command: ["/bin/sh", "-c"]
+      args: |
+        echo "username: $(cat /mnt/secrets/POSTGRES_USER)"
+        echo "password: $(cat /mnt/secrets/POSTGRES_PASSWORD)"
+        echo "database: $(cat /mnt/secrets/POSTGRES_DB)"
         sleep 3600
-    volumeMounts:
-    - name: vault-secrets
-      mountPath: /mnt/secrets
+      volumeMounts:
+        - name: vault-secrets
+          mountPath: /mnt/secrets
   volumes:
-  - name: vault-secrets
-    csi:
-      driver: secrets-store.csi.k8s.io
-      readOnly: true
-      volumeAttributes:
-        secretProviderClass: vault-citus-demo
-
-
-
-# SecretProviderClass para Vault
+    - name: vault-secrets
+      csi:
+        driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes:
+          secretProviderClass: vault-citus-demo
+---
 apiVersion: secrets-store.csi.x-k8s.io/v1
 kind: SecretProviderClass
 metadata:
@@ -37,8 +33,8 @@ metadata:
 spec:
   provider: vault
   parameters:
-    vaultAddress: "http://vault-server.vault.svc:8200"  # Dirección del servidor Vault
-    roleName: "citus-demo"  # Rol de Vault asignado a la app
+    vaultAddress: "http://vault-server.vault.svc:8200"
+    roleName: "citus-demo"
     objects: |
       - objectName: POSTGRES_USER
         secretPath: kv/data/citus
@@ -49,5 +45,3 @@ spec:
       - objectName: POSTGRES_DB
         secretPath: kv/data/citus
         secretKey: database
----
-

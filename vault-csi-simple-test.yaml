@@ -1,30 +1,3 @@
-apiVersion: v1
-kind: Pod
-metadata:
-  name: vault-csi-simple-test
-  namespace: citus-demo
-spec:
-  serviceAccountName: pipeline
-  containers:
-    - name: test-container
-      image: busybox
-      command: ["/bin/sh", "-c"]
-      args: |
-        echo "username: $(cat /mnt/secrets/POSTGRES_USER)"
-        echo "password: $(cat /mnt/secrets/POSTGRES_PASSWORD)"
-        echo "database: $(cat /mnt/secrets/POSTGRES_DB)"
-        sleep 3600
-      volumeMounts:
-        - name: vault-secrets
-          mountPath: /mnt/secrets
-  volumes:
-    - name: vault-secrets
-      csi:
-        driver: secrets-store.csi.k8s.io
-        readOnly: true
-        volumeAttributes:
-          secretProviderClass: vault-citus-demo
----
 apiVersion: secrets-store.csi.x-k8s.io/v1
 kind: SecretProviderClass
 metadata:
@@ -36,12 +9,44 @@ spec:
     vaultAddress: "http://vault-server.vault.svc:8200"
     roleName: "citus-demo"
     objects: |
-      - objectName: POSTGRES_USER
+      - objectName: username        # ← nombre del archivo en /mnt/secrets/
         secretPath: kv/data/citus
         secretKey: username
-      - objectName: POSTGRES_PASSWORD
+      - objectName: password
         secretPath: kv/data/citus
         secretKey: password
-      - objectName: POSTGRES_DB
+      - objectName: database
         secretPath: kv/data/citus
         secretKey: database
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vault-csi-simple-test
+  namespace: citus-demo
+spec:
+  serviceAccountName: pipeline
+  containers:
+  - name: test-container
+    image: busybox
+    command: ["/bin/sh", "-c"]
+    args:
+      - |
+        echo "=== Archivos en /mnt/secrets ==="
+        ls /mnt/secrets/
+        echo ""
+        echo "username: $(cat /mnt/secrets/username)"
+        echo "password: $(cat /mnt/secrets/password)"
+        echo "database: $(cat /mnt/secrets/database)"
+        sleep 3600
+    volumeMounts:
+    - name: vault-secrets
+      mountPath: /mnt/secrets
+      readOnly: true
+  volumes:
+  - name: vault-secrets
+    csi:
+      driver: secrets-store.csi.k8s.io
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: vault-citus-demo

@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vault-csi-simple-test
+  namespace: postgres-demo
+spec:
+  serviceAccountName: pipeline
+  containers:
+  - name: test-container
+    image: busybox
+    command: ["/bin/sh", "-c"]
+    args: 
+      - |
+        echo "username: $(cat /mnt/secrets/username)"
+        echo "password: $(cat /mnt/secrets/password)"
+        echo "database: $(cat /mnt/secrets/database)"
+        sleep 3600
+    volumeMounts:
+    - name: vault-secrets
+      mountPath: /mnt/secrets
+  volumes:
+  - name: vault-secrets
+    csi:
+      driver: secrets-store.csi.k8s.io
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: vault-citus-demo
+
+
+
+# SecretProviderClass para Vault
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: vault-citus-demo
+  namespace: postgres-demo
+spec:
+  provider: vault
+  parameters:
+    vaultAddress: "http://vault-server.vault.svc:8200"  # Dirección del servidor Vault
+    roleName: "citus-demo"  # Rol de Vault asignado a la app
+    objects: |
+      - objectName: POSTGRES_USER
+        secretPath: kv/data/citus
+        secretKey: username
+      - objectName: POSTGRES_PASSWORD
+        secretPath: kv/data/citus
+        secretKey: password
+      - objectName: POSTGRES_DB
+        secretPath: kv/data/citus
+        secretKey: database
+---
+

@@ -7,14 +7,43 @@ metadata:
     app.kubernetes.io/part-of: citusv2-prueba
 
 ---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: vault-citus-demo
+  namespace: citus-demo
+spec:
+  provider: vault
+  secretObjects:
+  - secretName: citus-credentials
+    type: Opaque
+    data:
+    - objectName: username
+      key: POSTGRES_USER
+    - objectName: password
+      key: POSTGRES_PASSWORD
+    - objectName: database
+      key: POSTGRES_DB
+  parameters:
+    vaultAddress: "http://vault-server.vault.svc:8200"
+    roleName: "citus-demo"
+    objects: |
+      - objectName: username
+        secretPath: kv/data/citus
+        secretKey: username
+      - objectName: password
+        secretPath: kv/data/citus
+        secretKey: password
+      - objectName: database
+        secretPath: kv/data/citus
+        secretKey: database
+---
 
 apiVersion: v1
 kind: Pod
 metadata:
   name: vault-envvar-test
   namespace: citus-demo
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"   # ← agrega esto
 spec:
   serviceAccountName: pipeline
   containers:

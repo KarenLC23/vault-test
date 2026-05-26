@@ -5,11 +5,21 @@ metadata:
   namespace: citus-demo
 spec:
   provider: vault
+  secretObjects:                    # ← esto crea el Secret de K8s
+  - secretName: citus-credentials
+    type: Opaque
+    data:
+    - objectName: username
+      key: POSTGRES_USER
+    - objectName: password
+      key: POSTGRES_PASSWORD
+    - objectName: database
+      key: POSTGRES_DB
   parameters:
     vaultAddress: "http://vault-server.vault.svc:8200"
     roleName: "citus-demo"
     objects: |
-      - objectName: username        # ← nombre del archivo en /mnt/secrets/
+      - objectName: username
         secretPath: kv/data/citus
         secretKey: username
       - objectName: password
@@ -18,7 +28,7 @@ spec:
       - objectName: database
         secretPath: kv/data/citus
         secretKey: database
-
+---
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -31,7 +41,7 @@ metadata:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: vault-csi-simple-test
+  name: vault-envvar-test
   namespace: citus-demo
 spec:
   serviceAccountName: pipeline
@@ -41,16 +51,30 @@ spec:
     command: ["/bin/sh", "-c"]
     args:
       - |
-        echo "=== Archivos en /mnt/secrets ==="
-        ls /mnt/secrets/
-        echo ""
-        echo "username: $(cat /mnt/secrets/username)"
-        echo "password: $(cat /mnt/secrets/password)"
-        echo "database: $(cat /mnt/secrets/database)"
+        echo "=== Variables de entorno desde Vault ==="
+        echo "POSTGRES_USER:     $POSTGRES_USER"
+        echo "POSTGRES_PASSWORD: $POSTGRES_PASSWORD"
+        echo "POSTGRES_DB:       $POSTGRES_DB"
         sleep 3600
+    env:
+    - name: POSTGRES_USER
+      valueFrom:
+        secretKeyRef:
+          name: citus-credentials    # ← Secret creado por secretObjects
+          key: POSTGRES_USER
+    - name: POSTGRES_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: citus-credentials
+          key: POSTGRES_PASSWORD
+    - name: POSTGRES_DB
+      valueFrom:
+        secretKeyRef:
+          name: citus-credentials
+          key: POSTGRES_DB
     volumeMounts:
     - name: vault-secrets
-      mountPath: /mnt/secrets
+      mountPath: /mnt/secrets        # ← obligatorio para que secretObjects funcione
       readOnly: true
   volumes:
   - name: vault-secrets

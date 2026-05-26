@@ -18,6 +18,15 @@ spec:
       - objectName: database
         secretPath: kv/data/citus
         secretKey: database
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pipeline
+  namespace: citus-demo
+  labels:
+    app.kubernetes.io/part-of: citusv2-prueba
 ---
 apiVersion: v1
 kind: Pod

@@ -41,6 +41,29 @@ metadata:
 apiVersion: v1
 kind: Pod
 metadata:
+  name: vault-csi-init
+  namespace: citus-demo
+spec:
+  serviceAccountName: pipeline
+  containers:
+  - name: init
+    image: busybox
+    command: ["/bin/sh", "-c", "sleep 3600"]
+    volumeMounts:
+    - name: vault-secrets
+      mountPath: /mnt/secrets
+      readOnly: true
+  volumes:
+  - name: vault-secrets
+    csi:
+      driver: secrets-store.csi.k8s.io
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: vault-citus-demo
+---
+apiVersion: v1
+kind: Pod
+metadata:
   name: vault-envvar-test
   namespace: citus-demo
 spec:
@@ -60,7 +83,7 @@ spec:
     - name: POSTGRES_USER
       valueFrom:
         secretKeyRef:
-          name: citus-credentials    # ← Secret creado por secretObjects
+          name: citus-credentials
           key: POSTGRES_USER
     - name: POSTGRES_PASSWORD
       valueFrom:
@@ -74,7 +97,7 @@ spec:
           key: POSTGRES_DB
     volumeMounts:
     - name: vault-secrets
-      mountPath: /mnt/secrets        # ← obligatorio para que secretObjects funcione
+      mountPath: /mnt/secrets
       readOnly: true
   volumes:
   - name: vault-secrets
